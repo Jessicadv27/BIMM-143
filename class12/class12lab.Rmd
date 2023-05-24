@@ -1,0 +1,357 @@
+---
+title: 'Class 12: DESeq2'
+author: "Jessica Diaz-Vigil"
+date: "2023-05-12"
+output: pdf_document
+---
+
+# Bioconductor and DESeq2 Setup
+
+```{r}
+#install.packages("BiocManager")
+#BiocManager::install()
+```
+
+```{r}
+#BiocManager::install("DESeq2")
+```
+
+```{r}
+library(BiocManager)
+library(DESeq2)
+```
+
+# Import `countData` and `colData`
+
+```{r}
+counts <- read.csv("airway_scaledcounts.csv", row.names=1)
+metadata <-  read.csv("airway_metadata.csv")
+```
+
+```{r}
+head(counts)
+```
+
+```{r}
+head(metadata)
+```
+
+-   **Q1.** How many genes are in this dataset? 
+
+    ```{r}
+    dim(counts)
+    ```
+
+    There are 38694 genes in the dataset
+
+-   **Q2.** How many 'control' cell lines do we have?
+
+    ```{r}
+    control_cell_lines <- table(metadata$dex)["control"]
+    control_cell_lines
+    ```
+
+    There are 4 "control" cell lines.
+
+# Toy Differential Gene Expression
+
+```{r}
+control <- metadata[metadata[,"dex"]=="control",]
+control.counts <- counts[ ,control$id]
+control.mean <- rowSums( control.counts )/4 
+head(control.mean)
+```
+
+```{r}
+library(dplyr)
+control <- metadata %>% filter(dex=="control")
+control.counts <- counts %>% select(control$id) 
+control.mean <- rowSums(control.counts)/4
+head(control.mean)
+```
+
+-   **Q3.** How would you make the above code in either approach more robust?
+
+    If you had more samples, you would need to change the code for `control.mean` to being divided by total samples instead of the 4 we have now.
+
+    ```{r}
+    # control <- metadata %>% filter(dex=="control")
+    # control.counts <- counts %>% select(control$id) 
+    # control.mean <- rowSums(control.counts)/ TOTAL NUM
+    # head(control.mean)
+    ```
+
+-   **Q4.** Follow the same procedure for the `treated` samples (i.e. calculate the mean per gene across drug treated samples and assign to a labeled vector called `treated.mean`)
+
+    ```{r}
+    treated <- metadata[metadata[,"dex"]=="treated",]
+    treated.mean <- rowSums( counts[ ,treated$id] )/4 
+    names(treated.mean) <- counts$ensgene
+    ```
+
+    ```{r}
+    head(control.mean)
+    head(treated.mean)
+    ```
+
+```{r}
+meancounts <- data.frame(control.mean, treated.mean)
+head(meancounts)
+```
+
+```{r}
+sum.control.mean <- colSums(meancounts)["control.mean"]
+sum.treated.mean <- colSums(meancounts)["treated.mean"]
+sum.control.mean
+sum.treated.mean
+```
+
+-   **Q5 (a).** Create a scatter plot showing the mean of the treated samples against the mean of the control samples. Your plot should look something like the following.
+
+    ```{r}
+    plot(x=control.mean, y=treated.mean, xlab= "control", ylab= "treated")
+    ```
+
+    ```{r}
+    library(ggplot2)
+    ggplot(meancounts, aes(x=control.mean, y=treated.mean)) +
+      geom_point()
+    ```
+
+-   **Q6.** Try plotting both axes on a log scale. What is the argument to **plot()** that allows you to do this?
+
+    ```{r}
+    library(ggplot2)
+    ggplot(meancounts, aes(x=control.mean, y=treated.mean)) +
+      geom_point() + scale_x_log10() + scale_y_log10()
+    ```
+
+```{r}
+meancounts$log2fc <- log2(meancounts[,"treated.mean"]/meancounts[,"control.mean"])
+head(meancounts)
+```
+
+```{r}
+zero.vals <- which(meancounts[,1:2]==0, arr.ind=TRUE)
+to.rm <- unique(zero.vals[,1])
+mycounts <- meancounts[-to.rm,]
+head(mycounts)
+```
+
+-   **Q7.** What is the purpose of the `arr.ind` argument in the **which()** function call above? Why would we then take the first column of the output and need to call the **unique()** function?
+
+    The `arr.ind = TRUE` argument will clause `which()` to return both the row and column indices where there are true values. Were calling `unique()` since we do not want to call the same two twice just in case there are entries in both samples
+
+```{r}
+mycounts$log2fc <- log2(mycounts$treated.mean/ 
+                        mycounts$control.mean)
+up.ind <- mycounts$log2fc > 2
+down.ind <- mycounts$log2fc < (-2)
+```
+
+-   **Q8.** Using the `up.ind` vector above can you determine how many up regulated genes we have at the greater than 2 fc level? 
+
+    ```{r}
+    sum(up.ind)
+    ```
+
+-   **Q9.** Using the `down.ind` vector above can you determine how many down regulated genes we have at the greater than 2 fc level? 
+
+    ```{r}
+    sum(down.ind)
+    ```
+
+-   **Q10.** Do you trust these results? Why or why not?
+
+    I do not trust these results fully since we don't know if the changes are significant.
+
+# DESeq2 Analysis
+
+```{r}
+library(DESeq2)
+citation("DESeq2")
+```
+
+```{r}
+dds <- DESeqDataSetFromMatrix(countData=counts, 
+                              colData=metadata, 
+                              design=~dex)
+dds
+```
+
+```{r}
+dds <- DESeq(dds)
+```
+
+```{r}
+res <- results(dds)
+res
+```
+
+```{r}
+summary(res)
+```
+
+```{r}
+res05 <- results(dds, alpha=0.05)
+summary(res05)
+```
+
+# Adding Annotation Data
+
+```{r}
+#BiocManager::install("AnnotationDbi")
+#BiocManager::install("org.Hs.eg.db") 
+```
+
+```{r}
+library("AnnotationDbi")
+library("org.Hs.eg.db")
+```
+
+```{r}
+columns(org.Hs.eg.db)
+```
+
+```{r}
+res$symbol <- mapIds(org.Hs.eg.db,
+                     keys=row.names(res),
+                     keytype="ENSEMBL",
+                     column="SYMBOL",
+                     multiVals="first")
+```
+
+```{r}
+head(res)
+```
+
+-   **Q11.** Run the **mapIds()** function two more times to add the Entrez ID and UniProt accession and GENENAME as new columns called `res$entrez`, `res$uniprot` and`res$genename`.
+
+    ```{r}
+    res$entrez <- mapIds(org.Hs.eg.db,
+                         keys=row.names(res),
+                         column="ENTREZID",
+                         keytype="ENSEMBL",
+                         multiVals="first")
+
+    res$uniprot <- mapIds(org.Hs.eg.db,
+                         keys=row.names(res),
+                         column="UNIPROT",
+                         keytype="ENSEMBL",
+                         multiVals="first")
+
+    res$genename <- mapIds(org.Hs.eg.db,
+                         keys=row.names(res),
+                         column="GENENAME",
+                         keytype="ENSEMBL",
+                         multiVals="first")
+
+    head(res)
+    ```
+
+```{r}
+ord <- order( res$padj )
+#View(res[ord,])
+head(res[ord,])
+```
+
+```{r}
+write.csv(res[ord,], "deseq_results.csv")
+```
+
+# Data Visualization
+
+```{r}
+plot( res$log2FoldChange,  -log(res$padj), 
+      xlab="Log2(FoldChange)",
+      ylab="-Log(P-value)")
+```
+
+```{r}
+plot( res$log2FoldChange,  log(res$padj), 
+      xlab="Log2(FoldChange)",
+      ylab="-Log(P-value)")
+```
+
+```{r}
+plot( res$log2FoldChange,  -log(res$padj), 
+ ylab="-Log(P-value)", xlab="Log2(FoldChange)")
+
+# Add some cut-off lines
+abline(v=c(-2,2), col="darkgray", lty=2)
+abline(h=-log(0.05), col="darkgray", lty=2)
+```
+
+```{r}
+mycols <- rep("gray", nrow(res))
+mycols[ abs(res$log2FoldChange) > 2 ]  <- "red" 
+
+inds <- (res$padj < 0.01) & (abs(res$log2FoldChange) > 2 )
+mycols[ inds ] <- "blue"
+
+plot( res$log2FoldChange,  -log(res$padj), 
+ col=mycols, ylab="-Log(P-value)", xlab="Log2(FoldChange)" )
+
+abline(v=c(-2,2), col="gray", lty=2)
+abline(h=-log(0.1), col="gray", lty=2)
+```
+
+```{r}
+#BiocManager::install("EnhancedVolcano")
+```
+
+```{r}
+library(ggrepel)
+library(EnhancedVolcano)
+```
+
+```{r}
+x <- as.data.frame(res)
+
+EnhancedVolcano(x,
+    lab = x$symbol,
+    x = 'log2FoldChange',
+    y = 'pvalue')
+```
+
+# Pathway Analysis
+
+```{r}
+#BiocManager::install( c("pathview", "gage", "gageData") )
+```
+
+```{r}
+library(pathview)
+library(gage)
+library(gageData)
+data(kegg.sets.hs)
+head(kegg.sets.hs, 2)
+```
+
+```{r}
+foldchanges = res$log2FoldChange
+names(foldchanges) = res$entrez
+head(foldchanges)
+```
+
+```{r}
+keggres = gage(foldchanges, gsets=kegg.sets.hs, same.dir=TRUE)
+```
+
+```{r}
+attributes(keggres)
+```
+
+```{r}
+head(keggres$less, 3)
+```
+
+```{r}
+pathview(gene.data=foldchanges, pathway.id="hsa05310")
+```
+
+```{r}
+pathview(gene.data=foldchanges, pathway.id="hsa05310", kegg.native=FALSE)
+```
+
+-   **Q12**. Can you do the same procedure as above to plot the pathview figures for the top 2 down-reguled pathways?

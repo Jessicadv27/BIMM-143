@@ -1,0 +1,6 @@
+---
+title: "Class 11: RNA-Seq Galaxy"
+author: "Jessica Diaz-Vigil"
+date: "2023-05-12"
+format: html
+---

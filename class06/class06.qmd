@@ -1,0 +1,260 @@
+---
+title: "Class 06: R Functions"
+author: "Jessica Diaz-Vigil"
+date: 2023-04-21
+format: pdf
+---
+
+In this class we will develop our own **R functions** to calculate average grades in a fictional class.
+
+## Simplified Version of Grade Averages
+
+We will start with a simplified version of the problem: Calculating the average grade of one student
+
+First we will bring in the values for the students:
+
+```{r}
+student1 <- 
+  c(100, 100, 100, 100, 100, 100, 100, 90)
+student2 <- 
+  c(100, NA, 90, 90, 90, 90, 97, 80)
+student3 <- 
+  c(90, NA, NA, NA, NA, NA, NA, NA)
+```
+
+We are going to start by calculating the average score of the homework for one student.
+
+```{r}
+mean(student1)
+```
+
+We now need to find the lowest score in order to drop the minimum score.
+
+`which.mean( )` can determine which score is the lowest by giving the position it is located.
+
+```{r}
+which.min(student1)
+```
+
+Now we know which homework we will drop. Next, we need to take a new average.
+
+```{r}
+student1[-8]
+mean(student1[-8])
+mean(student1[1:7])
+```
+
+To simplify this, we need to find a better way to select all the homework scores except for the lowest.
+
+```{r}
+student1[-which.min(student1)]
+```
+
+We can get the mean of all the scores now with the exception of the lowest score.
+
+```{r}
+mean(student1[-which.min(student1)])
+```
+
+A simpler way of writing this code is as follows (assigning a variable):
+
+```{r}
+student1_drop_lowest = student1[-which.min(student1)]
+student1_drop_lowest
+mean(student1_drop_lowest)
+```
+
+New variables can then be created for each student.
+
+```{r}
+student2_drop_lowest = student2[-which.min(student2)]
+student3_drop_lowest = student3[-which.min(student3)]
+student2_drop_lowest
+student3_drop_lowest
+```
+
+The problem with this is that NA is not being dropped, the lowest numerical score is being dropped.
+
+To fix this, we can remove the NA.
+
+```{r}
+mean(student2, na.rm = TRUE)
+```
+
+This looks good for Student2 since there was only one NA, though Student3 has many more NA. To see which homework scores are NA, we can do the following:
+
+```{r}
+is.na(student3)
+which(is.na(student3))
+```
+
+We now need to remove one NA score. To do this we can make a missing score equal to 0 so it will be removed when taking the mean.
+
+```{r}
+which(is.na(student3))
+student3[which(is.na(student3))] <- 0
+student3[which(is.na(student3))]
+student3
+```
+
+Now we need to take the mean again, though we need to remember to remove the lowest value.
+
+```{r}
+mean(student3)
+student3_drop_lowest = student3[-which.min(student3)]
+mean(student3_drop_lowest)
+```
+
+We will do this for Student2 now, though the mean will not change since we removed the NA already earlier.
+
+```{r}
+student2[which(is.na(student2))] <- 0
+student2_drop_lowest = student2[-which.min(student2)]
+mean(student2_drop_lowest)
+```
+
+We have created the basis of a function though we need to apply them to all the students now instead of only one at a time. We can use `x` to represent each student.
+
+```{r}
+# x[which(is.na(x))] <- 0
+# x_drop_lowest = x[-which.min(x)]
+# mean(x_drop_lowest)
+```
+
+## Creating a Function 
+
+Now we need to write this as a function.
+
+```{r}
+grade <- function(x)
+  {
+    x[which(is.na(x))] <- 0
+    x_drop_lowest = x[-which.min(x)]
+    mean(x_drop_lowest) 
+                        }
+```
+
+Now we can use this function.
+
+```{r}
+grade(student1)
+grade(student2)
+grade(student3)
+```
+
+## Application to a Gradebook
+
+Lets apply our function to a grade book from this URL: \"https://tinyurl.com/gradeinput\"
+
+```{r}
+url <- 'https://tinyurl.com/gradeinput'
+read.csv(url, row.names = 1)
+gradebook <- read.csv(url, row.names = 1)
+```
+
+Now we can apply the function to the grade book.
+
+```{r}
+apply(gradebook, 1, grade)
+```
+
+We can write everything as a function now and document it!
+
+```{r}
+#' Grade Calculator: Calculation of the average scores 
+#' for a vector of homework scores while dropping the 
+#' lowest score, considering NA values as 0
+#'
+#' @param x A numeric vector of scores
+#'
+#' @return The average value of homework scores
+#' @export
+#'
+#' @examples 
+#' student <- c(100, 50, NA)
+#' grade(student)
+#' 
+grade <- function(x)
+  {
+    x[which(is.na(x))] <- 0
+    x_drop_lowest = x[-which.min(x)]
+    mean(x_drop_lowest) 
+                        }
+```
+
+## Questions
+				
+
+**Q2.** Using your grade() function and the supplied gradebook, Who is the top scoring student overall in the gradebook?
+
+```{r}
+max(apply(gradebook, 1, grade))
+```
+
+The maximum score is 94.5
+
+```{r}
+which.max(apply(gradebook, 1, grade))
+```
+
+The student with the highest score was student 18
+
+**Q3.** From your analysis of the gradebook, which homework was toughest on students (i.e. obtained the lowest scores overall?
+
+```{r}
+apply(gradebook, 2, mean, na.rm = TRUE)
+```
+
+The lowest average was from hw3 when NA values were removed.
+
+```{r}
+gradebook[is.na(gradebook)] <- 0
+apply(gradebook, 2, mean)
+```
+
+The lowest average was from hw2 when the NA values were counted as 0.
+
+**Q4.** From your analysis of the gradebook, which homework was most predictive of overall score (i.e. highest correlation with average grade score)? \[**1pt**\]
+
+```{r}
+url <- 'https://tinyurl.com/gradeinput'
+read.csv(url, row.names = 1)
+gradebook <- read.csv(url, row.names = 1)
+overall_grades = apply(gradebook, 1, grade)
+overall_grades
+```
+
+```{r}
+cor(gradebook$hw1, overall_grades)
+cor(gradebook$hw2, overall_grades)
+cor(gradebook$hw3, overall_grades)
+cor(gradebook$hw4, overall_grades)
+cor(gradebook$hw5, overall_grades)
+```
+
+The highest correlation is the second homework, though this method took more effort.
+
+To simplify we could do as follows:
+
+```{r}
+url <- 'https://tinyurl.com/gradeinput'
+read.csv(url, row.names = 1)
+gradebook <- read.csv(url, row.names = 1)
+gradebook[is.na(gradebook)] <- 0
+apply(gradebook, 2, cor, overall_grades)
+which.max(apply(gradebook, 2, cor, overall_grades))
+```
+
+This method is much simpler and we can see that the highest correlation is still hw2.
+
+**Q5.** Make sure you save your Quarto document and can click the \"**Render**\" (or Rmarkdown\"**Knit**\") button to generate a PDF format report without errors. Finally, submit your PDF to gradescope. \[**1pt**\]
+
+			
+
+		
+
+	
+
+		
+
+	
