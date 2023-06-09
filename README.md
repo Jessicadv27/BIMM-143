@@ -28,6 +28,7 @@ This parge contrains my classwork from BIMM 143: Bioinformatics Lab at UC San Di
 
 
 - Class 8: [Unsupervised learning mini-project](https://github.com/Jessicadv27/BIMM-143/tree/main/class08)
+        - [md](https://github.com/Jessicadv27/BIMM-143/blob/main/mini%20project.md)
 
 
 - Class 9: [Structural bioinformatics](https://github.com/Jessicadv27/BIMM-143/tree/main/class09)
