@@ -1,0 +1,50 @@
+---
+title: "Find a Gene"
+author: "Jessica Diaz-Vigil"
+date: "2023-06-06"
+output: pdf_document
+---
+
+```{r}
+library(bio3d)
+```
+
+```{r}
+aln.seq<-read.fasta("seqdump1.fasta")
+pre.heat.data <- seqidentity(aln.seq)
+```
+
+```{r}
+pre.heat.data <- seqidentity(aln.seq)
+pre.heat.data
+```
+
+```{r}
+par(oma=c(6,2,1,4))
+par(mar=c(5,4,4,2) + 0.1)
+heatmap(pre.heat.data)
+```
+
+```{r}
+cons.seq<-consensus(aln.seq)
+
+b.data<-blast.pdb(cons.seq$seq)
+```
+
+```{r}
+plotb <- plot.blast(b.data)
+plotb
+```
+
+```{r}
+pdb.annotate(plotb)
+```
+
+```{r}
+library(bio3d)
+```
+
+```{r}
+pdb <- read.pdb("7nwh.pdb")
+pdb
+```
